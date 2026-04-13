@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    
+    <style>
+        /* --- CSS VARIABLES & PALETTE --- */
+        :root {
+            /* Solarized Dark & Custom Gradient Colors */
+            --bg-black: #050505;
+            --bg-nile: #001f2b;
+            --bg-green: #002c1b;
+            
+            /* Accents */
+            --retro-green: #2aa198; /* Cyan/Green */
+            --retro-amber: #b58900;
+            --retro-red: #dc322f;
+            --retro-blue: #268bd2;
+            --text-main: #839496; /* Solarized base1 */
+            --text-glow: #2aa198;
+            
+            /* UI */
+            --border-thick: 4px solid var(--retro-green);
+            --border-thin: 2px solid var(--retro-green);
+            --panel-bg: rgba(0, 43, 54, 0.85); /* Solarized base03 with opacity */
+        }
+
+        /* --- GLOBAL STYLES --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(135deg, var(--bg-black) 0%, var(--bg-nile) 50%, var(--bg-green) 100%);
+            background-attachment: fixed;
+            color: var(--retro-green);
+            font-family: 'VT323', monospace;
+            overflow: hidden; /* Hide scrollbars for full-screen feel */
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Press Start 2P', cursive;
+            text-transform: uppercase;
+        }
+
+        /* --- CRT EFFECTS --- */
+        .crt::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 999;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .crt::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%);
+            z-index: 998;
+            pointer-events: none;
+        }
+
+        /* --- LOADING SCREEN --- */
+        #loading-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--bg-black);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease-out;
+            cursor: pointer;
+        }
+
+        .blink-text {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1.2rem;
+            color: var(--retro-green);
+            text-shadow: 0 0 10px var(--text-glow);
+            animation: blinker 1.5s linear infinite;
+            text-align: center;
+            line-height: 2;
+        }
+
+        @keyframes blinker {
+            50% { opacity: 0; }
+        }
+
+        /* --- MAIN DASHBOARD LAYOUT --- */
+        #dashboard {
+            display: none; /* Hidden until loaded */
+            height: 100%;
+            padding: 20px;
+            overflow-y: auto;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Custom Scrollbar */
+        #dashboard::-webkit-scrollbar { width: 12px; }
+        #dashboard::-webkit-scrollbar-track { background: var(--bg-black); border-left: var(--border-thin); }
+        #dashboard::-webkit-scrollbar-thumb { background: var(--retro-green); }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 15px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: var(--border-thick);
+            padding: 15px;
+            box-shadow: inset 0 0 10px rgba(42, 161, 152, 0.2), 0 0 10px rgba(42, 161, 152, 0.4);
+            position: relative;
+        }
+
+        .panel-header {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.7rem;
+            background: var(--retro-green);
+            color: var(--bg-black);
+            padding: 5px;
+            margin: -15px -15px 15px -15px;
+            border-bottom: var(--border-thick);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* --- SPECIFIC WIDGETS --- */
+        
+        /* Time & Spiritual (Span 4) */
+        .widget-time { grid-column: span 4; }
+        #clock { font-size: 2.5rem; text-align: center; margin-bottom: 10px; color: var(--retro-amber); text-shadow: 0 0 10px var(--retro-amber); }
+        #date { text-align: center; font-size: 1.2rem; margin-bottom: 20px; }
+        .prayer-times { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 1.1rem; }
+        .prayer-item { display: flex; justify-content: space-between; border-bottom: 1px dashed var(--retro-green); padding-bottom: 3px;}
+        
+        .quote-box {
+            margin-top: 15px;
+            padding: 10px;
+            border: var(--border-thin);
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 1.2rem;
+            transition: opacity 0.5s;
+        }
+
+        /* Erbil Essentials (Span 4) */
+        .widget-essentials { grid-column: span 4; }
+        .data-row { display: flex; justify-content: space-between; align-items: center; font-size: 1.3rem; margin-bottom: 15px; }
+        .currency-val { font-family: 'Press Start 2P', cursive; font-size: 0.9rem; color: var(--retro-amber); }
+        
+        /* Toggle Switch */
+        .status-toggle {
+            display: inline-block;
+            width: 100%;
+            padding: 10px;
+            text-align: center;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.8rem;
+            cursor: pointer;
+            border: var(--border-thin);
+            transition: all 0.3s;
+        }
+        .status-on-call { background: var(--retro-red); color: black; box-shadow: 0 0 15px var(--retro-red); }
+        .status-post-call { background: var(--retro-green); color: black; box-shadow: 0 0 15px var(--retro-green); }
+
+        /* Jukebox (Span 4) */
+        .widget-jukebox { grid-column: span 4; }
+        .jukebox-ui { display: flex; flex-direction: column; gap: 10px; }
+        select, button {
+            background: var(--bg-black);
+            color: var(--retro-green);
+            border: var(--border-thin);
+            font-family: 'VT323', monospace;
+            font-size: 1.2rem;
+            padding: 5px;
+            cursor: pointer;
+            outline: none;
+        }
+        button:hover, select:hover { background: var(--retro-green); color: var(--bg-black); }
+        button:active { transform: scale(0.98); }
+        
+        .controls { display: flex; gap: 10px; }
+        .controls button { flex: 1; font-family: 'Press Start 2P', cursive; font-size: 0.6rem; padding: 10px; }
+        
+        .visualizer {
+            height: 40px;
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            border-bottom: var(--border-thin);
+            padding-bottom: 2px;
+        }
+        .bar { width: 100%; background: var(--retro-amber); transition: height 0.1s ease; height: 5px; }
+
+        /* Productivity & Health (Span 6) */
+        .widget-health { grid-column: span 6; display: flex; flex-direction: column; gap: 15px; }
+        
+        /* Pomodoro */
+        .pomodoro-container { display: flex; align-items: center; justify-content: space-between; border: var(--border-thin); padding: 10px; }
+        #pomo-time { font-family: 'Press Start 2P', cursive; font-size: 2rem; color: var(--retro-blue); text-shadow: 0 0 10px var(--retro-blue); }
+        .pomo-btns { display: flex; flex-direction: column; gap: 5px; }
+        .pomo-btns button { font-size: 0.6rem; padding: 5px; }
+
+        /* RPG Hydration Bar */
+        .rpg-label { font-family: 'Press Start 2P', cursive; font-size: 0.7rem; margin-bottom: 5px; }
+        .hp-bar-container { width: 100%; height: 20px; border: var(--border-thin); background: var(--bg-black); position: relative; }
+        .hp-bar-fill { height: 100%; background: var(--retro-blue); width: 100%; transition: width 0.5s ease; }
+        .hp-text { position: absolute; top: 0; left: 50%; transform: translateX(-50%); color: white; font-size: 1.2rem; line-height: 20px; text-shadow: 1px 1px 0 #000; }
+        #btn-drink { width: 100%; margin-top: 5px; font-family: 'Press Start 2P', cursive; font-size: 0.7rem; padding: 8px; border-color: var(--retro-blue); color: var(--retro-blue); }
+        #btn-drink:hover { background: var(--retro-blue); color: #000; }
+
+        /* Motivation */
+        .motivation-box { border-left: 4px solid var(--retro-amber); padding-left: 10px; font-size: 1.3rem; color: var(--text-main); font-style: italic; min-height: 60px; display: flex; align-items: center;}
+
+        /* Map & Weather (Span 6) */
+        .widget-env { grid-column: span 6; display: flex; flex-direction: column; gap: 15px; }
+        .weather-info { display: flex; justify-content: space-between; font-size: 1.4rem; border-bottom: 1px dashed var(--retro-green); padding-bottom: 10px;}
+        #map { width: 100%; height: 180px; border: var(--border-thin); background: var(--bg-black); z-index: 1; }
+
+        /* News Ticker (Span 12) */
+        .widget-ticker { grid-column: span 12; overflow: hidden; white-space: nowrap; box-sizing: border-box; }
+        .ticker-wrap { display: inline-block; padding-left: 100%; animation: ticker 25s linear infinite; font-size: 1.4rem; color: var(--retro-amber); }
+        @keyframes ticker {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-100%, 0, 0); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .widget-time, .widget-essentials, .widget-jukebox, .widget-health, .widget-env { grid-column: span 6; }
+        }
+        @media (max-width: 768px) {
+            .widget-time, .widget-essentials, .widget-jukebox, .widget-health, .widget-env { grid-column: span 12; }
+        }
+
+        /* Leaflet overrides for dark mode aesthetic */
+        .leaflet-container { background: var(--bg-black) !important; font-family: 'VT323', monospace; }
+        .leaflet-control-zoom a { background-color: var(--bg-black) !important; color: var(--retro-green) !important; border-color: var(--retro-green) !important; }
+
+        /* --- MODAL STYLES --- */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: var(--bg-nile);
+            border: var(--border-thick);
+            padding: 30px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 0 30px rgba(42, 161, 152, 0.6);
+        }
+        .modal-header {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1.5rem;
+            color: var(--retro-green);
+            margin-bottom: 20px;
+            border-bottom: var(--border-thick);
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .close-btn {
+            font-size: 2rem;
+            cursor: pointer;
+            color: var(--retro-red);
+            border: none;
+            background: none;
+            padding: 0;
+        }
+        .close-btn:hover {
+            color: var(--retro-amber);
+            transform: scale(1.2);
+        }
+
+        /* --- ATHKAR MODAL --- */
+        .athkar-section {
+            margin-bottom: 20px;
+            border-left: 4px solid var(--retro-amber);
+            padding-left: 15px;
+        }
+        .athkar-title {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1rem;
+            color: var(--retro-amber);
+            margin-bottom: 10px;
+        }
+        .athkar-item {
+            background: rgba(42, 161, 152, 0.1);
+            padding: 15px;
+            margin-bottom: 10px;
+            border: 1px solid var(--retro-green);
+            font-size: 1.2rem;
+            line-height: 1.6;
+            direction: rtl;
+            text-align: right;
+        }
+        .athkar-translation {
+            font-size: 1rem;
+            color: var(--text-main);
+            margin-top: 8px;
+            direction: ltr;
+            text-align: left;
+        }
+
+        /* --- TODO LIST --- */
+        .todo-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .todo-input-group {
+            display: flex;
+            gap: 5px;
+        }
+        #todo-input {
+            flex: 1;
+            padding: 10px;
+            background: var(--bg-black);
+            color: var(--retro-green);
+            border: var(--border-thin);
+            font-family: 'VT323', monospace;
+        }
+        #todo-add-btn {
+            padding: 10px 20px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.6rem;
+        }
+        .todo-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .todo-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid var(--retro-green);
+            background: rgba(42, 161, 152, 0.1);
+            gap: 10px;
+        }
+        .todo-item.completed {
+            opacity: 0.5;
+            text-decoration: line-through;
+        }
+        .todo-item input[type="checkbox"] {
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+        }
+        .todo-item .todo-text {
+            flex: 1;
+            font-size: 1.1rem;
+        }
+        .todo-item .todo-delete {
+            background: var(--retro-red);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.5rem;
+        }
+
+        /* --- RSS FEEDS --- */
+        .rss-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .rss-item {
+            background: rgba(42, 161, 152, 0.1);
+            border: 1px solid var(--retro-green);
+            padding: 15px;
+        }
+        .rss-item-title {
+            color: var(--retro-amber);
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            font-family: 'Press Start 2P', cursive;
+        }
+        .rss-item-desc {
+            font-size: 1rem;
+            color: var(--text-main);
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        .rss-item-link {
+            color: var(--retro-blue);
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        /* --- MUSIC PLAYER ENHANCED --- */
+        .music-channel-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: var(--bg-black);
+            color: var(--retro-green);
+            border: var(--border-thin);
+            font-family: 'VT323', monospace;
+        }
+
+        /* --- WIDGET ENHANCEMENTS --- */
+        .widget-todo { grid-column: span 4; }
+        .widget-rss { grid-column: span 12; }
+        .widget-reddit { grid-column: span 6; }
+        
+        @media (max-width: 1024px) {
+            .widget-todo, .widget-reddit { grid-column: span 6; }
+            .widget-rss { grid-column: span 12; }
+        }
+        @media (max-width: 768px) {
+            .widget-todo, .widget-reddit, .widget-rss { grid-column: span 12; }
+        }
+        
+        /* --- REDDIT PHOTOS --- */
+        .reddit-photos {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        .reddit-photo {
+            border: 1px solid var(--retro-green);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .reddit-photo:hover {
+            box-shadow: 0 0 10px rgba(42, 161, 152, 0.8);
+            transform: scale(1.02);
+        }
+        .reddit-photo img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .location-display {
+            font-size: 1rem;
+            color: var(--retro-blue);
+            margin-top: 10px;
+            padding: 10px;
+            border: var(--border-thin);
+            background: rgba(38, 139, 210, 0.1);
+        }
+
+        /* Button enhancements */
+        .btn-popup {
+            width: 100%;
+            margin-top: 10px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.7rem;
+            padding: 10px;
+            background: var(--retro-amber);
+            color: black;
+            border: var(--border-thin);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-popup:hover {
+            background: var(--retro-green);
+            box-shadow: 0 0 15px var(--retro-green);
+        }
+    </style>
+</head>
+<body class="crt">
+
+    <!-- LOADING SCREEN -->
+    <div id="loading-screen">
+        <div class="blink-text">
+            > SYSTEM INITIALIZATION<br><br>
+            > ESTABLISHING ERBIL CONNECTION...<br>
+            > MOUNTING MODULES...<br><br>
+            [ PRESS SPACE OR CLICK TO ENTER ]
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div id="dashboard">
+        <div class="grid-container">
+            
+            <!-- WIDGET 1: TIME & SPIRITUAL -->
+            <div class="panel widget-time">
+                <div class="panel-header"><span>SYS.TIME</span><span>[01]</span></div>
+                <div id="clock">00:00:00</div>
+                <div id="date">YYYY-MM-DD</div>
+                
+                <div class="rpg-label">> PRAYER PROTOCOL (ERBIL)</div>
+                <div class="prayer-times" id="prayer-container">
+                    <div class="prayer-item"><span>Fajr</span><span id="p-fajr">--:--</span></div>
+                    <div class="prayer-item"><span>Dhuhr</span><span id="p-dhuhr">--:--</span></div>
+                    <div class="prayer-item"><span>Asr</span><span id="p-asr">--:--</span></div>
+                    <div class="prayer-item"><span>Maghrib</span><span id="p-maghrib">--:--</span></div>
+                    <div class="prayer-item"><span>Isha</span><span id="p-isha">--:--</span></div>
+                </div>
+
+                <div class="quote-box" id="spiritual-quote">
+                    "Loading spiritual data..."
+                </div>
+                
+                <div class="rpg-label" style="margin-top: 15px;">> WISDOM CACHE</div>
+                <div style="font-size: 0.9rem; margin-bottom: 10px;">
+                    <button id="btn-refresh-wisdom" style="width: 100%; font-family: 'Press Start 2P', cursive; font-size: 0.6rem; padding: 8px; margin-bottom: 5px;">[RANDOM]</button>
+                </div>
+                <div id="wisdom-content" style="min-height: 100px; font-size: 1rem; line-height: 1.5; padding: 10px; border: var(--border-thin); background: rgba(42, 161, 152, 0.1); overflow-y: auto; max-height: 150px;">
+                    Loading Islamic wisdom...
+                </div>
+            </div>
+
+            <!-- WIDGET 2: ERBIL ESSENTIALS -->
+            <div class="panel widget-essentials">
+                <div class="panel-header"><span>ESSENTIALS</span><span>[02]</span></div>
+                
+                <div class="rpg-label">> DUTY STATUS</div>
+                <div id="hospital-status" class="status-toggle status-post-call">
+                    STATUS: POST-CALL (GREEN)
+                </div>
+                
+                <div style="margin-top: 20px; text-align: center;">
+                    <span style="font-size: 1.2rem; color: var(--retro-amber);">REAL-TIME LOCATION</span>
+                    <div id="location-display" class="location-display">
+                        <span id="location-status">🔴 Fetching GPS...</span><br>
+                        <span id="lat-lon" style="font-size: 0.9rem;">LAT: -- / LON: --</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WIDGET 3: MUSIC PLAYER ENHANCED -->
+            <div class="panel widget-jukebox" style="grid-column: span 4;">
+                <div class="panel-header"><span>MUSIC.PLAYER</span><span>[03]</span></div>
+                <div class="jukebox-ui">
+                    <div class="rpg-label">> CHANNEL SOURCE</div>
+                    <select id="music-source">
+                        <option value="telegram">Telegram Channel</option>
+                        <option value="soundcloud">SoundCloud (Random)</option>
+                    </select>
+
+                    <div id="telegram-input-group" style="display: none; margin-top: 10px;">
+                        <input type="text" id="telegram-channel-name" class="music-channel-input" placeholder="Enter Telegram channel (e.g., @channelname)">
+                    </div>
+
+                    <div id="soundcloud-input-group" style="display: none; margin-top: 10px;">
+                        <input type="text" id="soundcloud-query" class="music-channel-input" placeholder="Search term (optional)">
+                    </div>
+
+                    <div class="visualizer" id="visualizer">
+                        <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                        <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                        <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                    </div>
+
+                    <div class="controls">
+                        <button id="btn-play">[PLAY]</button>
+                        <button id="btn-pause">[PAUSE]</button>
+                        <button id="btn-next">[NEXT]</button>
+                    </div>
+                    <div style="font-size: 1rem; margin-top: 5px; text-align: center;" id="jb-status">PLAYER_IDLE</div>
+                    <div id="now-playing" style="font-size: 0.9rem; color: var(--retro-amber); text-align: center; margin-top: 10px;">Ready to play</div>
+                </div>
+            </div>
+
+            <!-- WIDGET 4: PRODUCTIVITY & HEALTH -->
+            <div class="panel widget-health">
+                <div class="panel-header"><span>BIO_METRICS</span><span>[04]</span></div>
+                
+                <!-- Pomodoro -->
+                <div class="rpg-label">> POMODORO MODULE</div>
+                <div class="pomodoro-container">
+                    <div id="pomo-time">25:00</div>
+                    <div class="pomo-btns">
+                        <button id="pomo-start">[STRT]</button>
+                        <button id="pomo-stop">[STOP]</button>
+                        <button id="pomo-reset">[RSET]</button>
+                    </div>
+                </div>
+
+                <!-- Hydration Bar -->
+                <div class="rpg-label">> HYDRATION LEVEL (MP)</div>
+                <div class="hp-bar-container">
+                    <div class="hp-bar-fill" id="hydro-fill"></div>
+                    <div class="hp-text" id="hydro-text">100%</div>
+                </div>
+                <button id="btn-drink">USE [H2O POTION]</button>
+
+                <!-- Motivation -->
+                <div class="rpg-label">> MOTIVATION.LOG</div>
+                <div class="motivation-box" id="motivation-text">
+                    "Initializing neural motivation protocols..."
+                </div>
+            </div>
+
+            <!-- WIDGET 5: ENVIRONMENT & MAP -->
+            <div class="panel widget-env">
+                <div class="panel-header"><span>ENV_SCANNER</span><span>[05]</span></div>
+                
+                <div class="weather-info">
+                    <span>TEMP: <span id="w-temp">--</span>°C</span>
+                    <span>WIND: <span id="w-wind">--</span> km/h</span>
+                </div>
+
+                <div class="rpg-label" style="margin-top: 5px;">> SATELLITE UPLINK (ERBIL)</div>
+                <div id="map"></div>
+            </div>
+
+            <!-- WIDGET 6: NEWS TICKER -->
+            <div class="panel widget-ticker">
+                <div class="ticker-wrap" id="ticker-text">
+                    *** ERBIL MEDICAL NEWS PROTOCOL // NO CRITICAL ALERTS // SURGERY SCHEDULE NOMINAL // COMPILE SUCCESSFUL // DON'T FORGET TO DRINK WATER ***
+                </div>
+            </div>
+
+
+
+            <!-- WIDGET 8: ATHKAR & TODO -->
+            <div class="panel widget-todo">
+                <div class="panel-header"><span>ACTIONS</span><span>[07]</span></div>
+                <button id="btn-athkar" class="btn-popup">
+                    [ATHKAR/أذكار]
+                </button>
+                <div style="margin-top: 20px;">
+                    <div class="rpg-label">> TASK LOG</div>
+                    <div class="todo-container">
+                        <div class="todo-input-group">
+                            <input type="text" id="todo-input" placeholder="Enter task...">
+                            <button id="todo-add-btn">[ADD]</button>
+                        </div>
+                        <div class="todo-list" id="todo-list"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WIDGET 9: REDDIT PHOTOS -->
+            <div class="panel widget-reddit">
+                <div class="panel-header"><span>REDDIT.PICS</span><span>[08]</span></div>
+                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                    <select id="reddit-subreddit" style="flex: 1;">
+                        <option value="aww">r/aww (Cute Animals)</option>
+                        <option value="cute">r/cute (Cuteness)</option>
+                        <option value="memes">r/memes (Memes)</option>
+                        <option value="EarthPorn">r/EarthPorn (Nature)</option>
+                        <option value="cats">r/cats (Cats)</option>
+                    </select>
+                    <button id="btn-refresh-reddit" style="font-family: 'Press Start 2P', cursive; font-size: 0.6rem; padding: 5px 10px;">[LOAD]</button>
+                </div>
+                <div id="reddit-content" class="reddit-photos">
+                    <div style="text-align: center; color: var(--text-main); width: 100%;">Loading photos...</div>
+                </div>
+            </div>
+
+            <!-- WIDGET 10: NEWS FEEDS -->
+            <div class="panel widget-rss">
+                <div class="panel-header"><span>NEWS_FEEDS</span><span>[09]</span></div>
+                <div style="margin-bottom: 15px; display: flex; gap: 10px;">
+                    <button id="btn-refresh-rss" style="font-family: 'Press Start 2P', cursive; font-size: 0.6rem; flex: 1;">
+                        [REFRESH FEEDS]
+                    </button>
+                    <select id="feed-filter" style="flex: 1;">
+                        <option value="all">ALL FEEDS</option>
+                        <option value="bbc">BBC News</option>
+                        <option value="reuters">Reuters</option>
+                        <option value="aljazeera">Al Jazeera</option>
+                    </select>
+                </div>
+                <div id="rss-content" class="rss-container">
+                    <div style="grid-column: 1/-1; text-align: center; color: var(--text-main);">Loading news feeds...</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <!-- ATHKAR MODAL -->
+    <div id="athkar-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>أذكار - DAILY SUPPLICATIONS</span>
+                <button class="close-btn" onclick="closeAthkarModal()">×</button>
+            </div>
+            <div id="athkar-body">
+                <!-- Content will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        // --- 1. BOOT SEQUENCE ---
+        const loadingScreen = document.getElementById('loading-screen');
+        const dashboard = document.getElementById('dashboard');
+        let systemInitialized = false;
+
+        function initializeSystem() {
+            if(systemInitialized) return;
+            systemInitialized = true;
+            
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => {
+                loadingScreen.style.display = 'none';
+                dashboard.style.display = 'block';
+                
+                // Start all modules
+                startClock();
+                fetchPrayers();
+                startQuoteRotator();
+
+                setupHospitalToggle();
+                setupPomodoro();
+                setupHydration();
+                startMotivationRotator();
+                fetchWeather();
+                initMap();
+                initRealTimeLocation();
+                setupWisdomCache();
+                setupTodoList();
+                setupMusicPlayer();
+                setupRSSFeeds();
+                setupAthkarModal();
+                setupRedditPhotos();
+            }, 500);
+        }
+
+        // Listen for Spacebar or Click
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') initializeSystem();
+        });
+        loadingScreen.addEventListener('click', initializeSystem);
+
+
+        // --- 2. TIME & SPIRITUAL MODULE ---
+        function startClock() {
+            const clockEl = document.getElementById('clock');
+            const dateEl = document.getElementById('date');
+            
+            setInterval(() => {
+                const now = new Date();
+                clockEl.textContent = now.toLocaleTimeString('en-US', { hour12: false });
+                dateEl.textContent = now.toISOString().split('T')[0];
+            }, 1000);
+        }
+
+        async function fetchPrayers() {
+            try {
+                // Erbil Coordinates API Call via Aladhan
+                const res = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Erbil&country=Iraq&method=8');
+                const data = await res.json();
+                const timings = data.data.timings;
+                
+                document.getElementById('p-fajr').textContent = timings.Fajr;
+                document.getElementById('p-dhuhr').textContent = timings.Dhuhr;
+                document.getElementById('p-asr').textContent = timings.Asr;
+                document.getElementById('p-maghrib').textContent = timings.Maghrib;
+                document.getElementById('p-isha').textContent = timings.Isha;
+            } catch (err) {
+                console.error("Prayer fetch failed", err);
+                document.getElementById('prayer-container').innerHTML = "<p>ERR: PRAYER_API_UNREACHABLE</p>";
+            }
+        }
+
+        function startQuoteRotator() {
+            const quotes = [
+                '"So verily, with the hardship, there is relief." (Quran 94:5)',
+                '"Take advantage of five before five: your youth before your old age, your health before your sickness..." (Hadith)',
+                '"He who does not show mercy to people, Allah will not show mercy to him." (Hadith)',
+                '"And He found you lost and guided [you]." (Quran 93:7)',
+                '"The strong man is not the good wrestler, but the strong man is he who controls himself when he is angry." (Hadith)'
+            ];
+            const quoteEl = document.getElementById('spiritual-quote');
+            let i = 0;
+            
+            quoteEl.textContent = quotes[0];
+            setInterval(() => {
+                quoteEl.style.opacity = 0;
+                setTimeout(() => {
+                    i = (i + 1) % quotes.length;
+                    quoteEl.textContent = quotes[i];
+                    quoteEl.style.opacity = 1;
+                }, 500);
+            }, 15000);
+        }
+
+
+        // --- 3. ERBIL ESSENTIALS ---
+        function fetchCurrencyMock() {
+            // Currency removed - keeping function stub
+        }
+
+        function setupHospitalToggle() {
+            const btn = document.getElementById('hospital-status');
+            let onCall = localStorage.getItem('hospitalStatus') === 'true';
+            
+            const updateUI = () => {
+                if(onCall) {
+                    btn.className = 'status-toggle status-on-call';
+                    btn.textContent = 'STATUS: ON-CALL (RED)';
+                } else {
+                    btn.className = 'status-toggle status-post-call';
+                    btn.textContent = 'STATUS: POST-CALL (GREEN)';
+                }
+            };
+
+            updateUI();
+            btn.addEventListener('click', () => {
+                onCall = !onCall;
+                localStorage.setItem('hospitalStatus', onCall);
+                updateUI();
+            });
+        }
+
+        // --- REAL-TIME GPS LOCATION ---
+        function initRealTimeLocation() {
+            const locationDisplay = document.getElementById('location-display');
+            const locStatus = document.getElementById('location-status');
+            const latLon = document.getElementById('lat-lon');
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude.toFixed(4);
+                        const lon = position.coords.longitude.toFixed(4);
+                        locStatus.innerHTML = '🟢 GPS LOCKED';
+                        latLon.textContent = `LAT: ${lat} / LON: ${lon}`;
+                        updateMapLocation(lat, lon);
+                    },
+                    (error) => {
+                        console.error("Geolocation error:", error);
+                        locStatus.innerHTML = '🟡 GPS Unavailable - Using Default (Erbil)';
+                        latLon.textContent = 'LAT: 36.1911 / LON: 44.0092';
+                    }
+                );
+
+                // Update location every 30 seconds
+                setInterval(() => {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            const lat = position.coords.latitude.toFixed(4);
+                            const lon = position.coords.longitude.toFixed(4);
+                            latLon.textContent = `LAT: ${lat} / LON: ${lon}`;
+                        },
+                        (error) => console.error("Geolocation update failed", error)
+                    );
+                }, 30000);
+            } else {
+                locStatus.innerHTML = '⚫ Geolocation Not Supported';
+            }
+        }
+
+        function updateMapLocation(lat, lon) {
+            // Map will be updated if already initialized
+            if (window.mapInstance && window.mapMarker) {
+                window.mapInstance.setView([lat, lon], 12);
+                window.mapMarker.setLatLng([lat, lon]);
+            }
+        }
+
+
+        // --- 5. PRODUCTIVITY & HEALTH ---
+        function setupPomodoro() {
+            let timeLeft = 25 * 60;
+            let timerId = null;
+            const display = document.getElementById('pomo-time');
+            
+            const updateDisplay = () => {
+                const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+                const s = (timeLeft % 60).toString().padStart(2, '0');
+                display.textContent = `${m}:${s}`;
+            };
+
+            document.getElementById('pomo-start').addEventListener('click', () => {
+                if(timerId) return;
+                timerId = setInterval(() => {
+                    if(timeLeft > 0) {
+                        timeLeft--;
+                        updateDisplay();
+                    } else {
+                        clearInterval(timerId);
+                        timerId = null;
+                        alert("POMODORO CYCLE COMPLETE. REST REQUIRED.");
+                    }
+                }, 1000);
+            });
+
+            document.getElementById('pomo-stop').addEventListener('click', () => {
+                clearInterval(timerId);
+                timerId = null;
+            });
+
+            document.getElementById('pomo-reset').addEventListener('click', () => {
+                clearInterval(timerId);
+                timerId = null;
+                timeLeft = 25 * 60;
+                updateDisplay();
+            });
+        }
+
+        function setupHydration() {
+            let hydration = 100;
+            const fill = document.getElementById('hydro-fill');
+            const text = document.getElementById('hydro-text');
+
+            // Deplete by 1% every 60 seconds (slower timer as requested)
+            setInterval(() => {
+                if(hydration > 0) {
+                    hydration -= 1;
+                    updateUI();
+                }
+            }, 60000);
+
+            document.getElementById('btn-drink').addEventListener('click', () => {
+                hydration = Math.min(100, hydration + 25);
+                updateUI();
+            });
+
+            function updateUI() {
+                fill.style.width = `${hydration}%`;
+                text.textContent = `${hydration}%`;
+                if(hydration < 30) {
+                    fill.style.background = 'var(--retro-red)';
+                } else if(hydration < 60) {
+                    fill.style.background = 'var(--retro-amber)';
+                } else {
+                    fill.style.background = 'var(--retro-blue)';
+                }
+            }
+        }
+
+        function startMotivationRotator() {
+            const quotes = [
+                "The code is compiling. The patient is stable. Breathe.",
+                "A bug is just a diagnostic challenge.",
+                "Coffee: The most vital IV fluid.",
+                "Measure twice, cut once. Code twice, deploy once.",
+                "Trust your training. Trust your logic.",
+                "Healing the body, building the web."
+            ];
+            const quoteEl = document.getElementById('motivation-text');
+            let i = 0;
+            
+            quoteEl.textContent = quotes[0];
+            setInterval(() => {
+                i = (i + 1) % quotes.length;
+                quoteEl.textContent = quotes[i];
+            }, 10000);
+        }
+
+
+        // --- 6. ENVIRONMENT MODULE ---
+        async function fetchWeather() {
+            try {
+                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=36.1911&longitude=44.0092&current_weather=true');
+                const data = await res.json();
+                
+                document.getElementById('w-temp').textContent = data.current_weather.temperature;
+                document.getElementById('w-wind').textContent = data.current_weather.windspeed;
+            } catch (err) {
+                console.error("Weather fetch failed", err);
+                document.getElementById('w-temp').textContent = "ERR";
+                document.getElementById('w-wind').textContent = "ERR";
+            }
+        }
+
+        function initMap() {
+            const map = L.map('map', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([36.1911, 44.0092], 12);
+
+            window.mapInstance = map;
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19
+            }).addTo(map);
+
+            const retroIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: "<div style='background-color: var(--retro-red); width: 10px; height: 10px; border: 2px solid white;'></div>",
+                iconSize: [10, 10],
+                iconAnchor: [5, 5]
+            });
+
+            window.mapMarker = L.marker([36.1911, 44.0092], {icon: retroIcon}).addTo(map);
+        }
+
+
+        // --- 7. WISDOM CACHE MODULE (Quran & Hadith combined in SYS.TIME) ---
+        const wisdomData = [
+            { type: 'qur', text: 'إِنَّ مَعَ الْعُسْرِ يُسْرًا', translation: 'Indeed, with hardship comes ease. (Quran 94:5)', source: 'Surah Al-Inshirah' },
+            { type: 'hadith', text: 'استغفر الله وأتوب إليه', translation: 'I ask for forgiveness from Allah and repent to Him. (Hadith Qudsi)', source: 'Sahih Muslim' },
+            { type: 'qur', text: 'قُل هُوَ اللَّهُ أَحَدٌ', translation: 'Say, "He is Allah, [who is] One" (Quran 112:1)', source: 'Surah Al-Ikhlas' },
+            { type: 'hadith', text: 'الراحمون يرحمهم الرحمن', translation: 'The merciful will be treated with mercy by the Most Merciful. (Hadith)', source: 'Sunan At-Tirmidhi' },
+            { type: 'qur', text: 'يَا أَيُّهَا الَّذِينَ آمَنُوا اصْبِرُوا وَصَابِرُوا', translation: 'O you who believe, be patient and persevere. (Quran 3:200)', source: 'Surah Al-Imran' },
+            { type: 'qur', text: 'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً', translation: 'Our Lord, give us good in this world and good in the Hereafter. (Quran 2:201)', source: 'Surah Al-Baqarah' },
+            { type: 'hadith', text: 'من سأل الله الجنة ثلاث مرات', translation: 'The one who asks Paradise three times... (Hadith)', source: 'Sunan At-Tirmidhi' },
+            { type: 'qur', text: 'وَمَا تُنْفِقُوا مِنْ خَيْرٍ فَلِأَنْفُسِكُمْ', translation: 'And what good you spend is for yourselves. (Quran 2:272)', source: 'Surah Al-Baqarah' },
+            { type: 'hadith', text: 'لا تحقرن من المعروف شيئا', translation: 'Do not underestimate any good deed. (Hadith)', source: 'Sahih Muslim' },
+            { type: 'qur', text: 'إِنَّ اللَّهَ مَعَ الصَّابِرِينَ', translation: 'Indeed, Allah is with the patient ones. (Quran 8:46)', source: 'Surah Al-Anfal' }
+        ];
+
+        function setupWisdomCache() {
+            const wisdomEl = document.getElementById('wisdom-content');
+            const refreshBtn = document.getElementById('btn-refresh-wisdom');
+            let currentIndex = 0;
+
+            function displayWisdom() {
+                const item = wisdomData[currentIndex];
+                wisdomEl.innerHTML = `
+                    <div style="direction: rtl; text-align: right; margin-bottom: 10px; font-size: 1.1rem; color: var(--retro-amber);">
+                        ${item.text}
+                    </div>
+                    <div style="border-top: 1px solid var(--retro-green); padding-top: 8px; font-size: 0.95rem; color: var(--text-main); text-align: left;">
+                        "${item.translation}"
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--retro-blue); margin-top: 8px;">
+                        📖 ${item.source}
+                    </div>
+                `;
+            }
+
+            displayWisdom();
+
+            refreshBtn.addEventListener('click', () => {
+                currentIndex = Math.floor(Math.random() * wisdomData.length);
+                displayWisdom();
+            });
+
+            // Auto-update every 5 minutes
+            setInterval(() => {
+                currentIndex = (currentIndex + 1) % wisdomData.length;
+                displayWisdom();
+            }, 5 * 60 * 1000);
+        }
+
+
+        // --- 8. TODO LIST MODULE ---
+        function setupTodoList() {
+            const todoInput = document.getElementById('todo-input');
+            const todoAddBtn = document.getElementById('todo-add-btn');
+            const todoList = document.getElementById('todo-list');
+            
+            let todos = JSON.parse(localStorage.getItem('todos')) || [];
+
+            function renderTodos() {
+                todoList.innerHTML = '';
+                todos.forEach((todo, index) => {
+                    const todoItem = document.createElement('div');
+                    todoItem.className = `todo-item ${todo.completed ? 'completed' : ''}`;
+                    todoItem.innerHTML = `
+                        <input type="checkbox" ${todo.completed ? 'checked' : ''} onchange="toggleTodo(${index})">
+                        <span class="todo-text">${todo.text}</span>
+                        <button class="todo-delete" onclick="deleteTodo(${index})">X</button>
+                    `;
+                    todoList.appendChild(todoItem);
+                });
+            }
+
+            window.toggleTodo = (index) => {
+                todos[index].completed = !todos[index].completed;
+                localStorage.setItem('todos', JSON.stringify(todos));
+                renderTodos();
+            };
+
+            window.deleteTodo = (index) => {
+                todos.splice(index, 1);
+                localStorage.setItem('todos', JSON.stringify(todos));
+                renderTodos();
+            };
+
+            todoAddBtn.addEventListener('click', () => {
+                if (todoInput.value.trim()) {
+                    todos.push({ text: todoInput.value, completed: false });
+                    localStorage.setItem('todos', JSON.stringify(todos));
+                    todoInput.value = '';
+                    renderTodos();
+                }
+            });
+
+            todoInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') todoAddBtn.click();
+            });
+
+            renderTodos();
+        }
+
+
+        // --- 9. ENHANCED MUSIC PLAYER ---
+        let currentAudio = null;
+        let isMusicPlaying = false;
+        let musicVisualizerInterval;
+        const audioSamples = [
+            'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3',
+            'https://media.mixkit.com/active_storage/sfx/2870/2870-preview.mp3',
+            'https://media.mixkit.com/active_storage/sfx/2871/2871-preview.mp3',
+            'https://cdn.pixabay.com/download/audio/2021/08/04/audio_11974dac28.mp3'
+        ];
+
+        function setupMusicPlayer() {
+            const musicSource = document.getElementById('music-source');
+            const telegramGroup = document.getElementById('telegram-input-group');
+            const soundcloudGroup = document.getElementById('soundcloud-input-group');
+            const playBtn = document.getElementById('btn-play');
+            const pauseBtn = document.getElementById('btn-pause');
+            const nextBtn = document.getElementById('btn-next');
+            const statusEl = document.getElementById('jb-status');
+            const nowPlayingEl = document.getElementById('now-playing');
+            
+            // Get bars from music visualizer
+            const visualizer = document.getElementById('visualizer');
+            let bars = visualizer ? visualizer.querySelectorAll('.bar') : [];
+
+            musicSource.addEventListener('change', () => {
+                if (musicSource.value === 'telegram') {
+                    telegramGroup.style.display = 'block';
+                    soundcloudGroup.style.display = 'none';
+                } else {
+                    telegramGroup.style.display = 'none';
+                    soundcloudGroup.style.display = 'block';
+                }
+            });
+
+            const updateMusicVisualizer = () => {
+                if (bars && bars.length > 0) {
+                    bars.forEach(bar => {
+                        if(isMusicPlaying) {
+                            bar.style.height = `${Math.floor(Math.random() * 35) + 5}px`;
+                        } else {
+                            bar.style.height = '5px';
+                        }
+                    });
+                }
+            };
+
+            playBtn.addEventListener('click', async () => {
+                if (isMusicPlaying) return;
+
+                const source = musicSource.value;
+                let audioUrl = '';
+
+                try {
+                    if (source === 'soundcloud') {
+                        const query = document.getElementById('soundcloud-query').value || 'lofi';
+                        statusEl.textContent = 'STATUS: SEARCHING...';
+                        // Use random sample from our collection
+                        audioUrl = audioSamples[Math.floor(Math.random() * audioSamples.length)];
+                        nowPlayingEl.textContent = `Now playing: ${query} - ${Math.floor(Math.random()*100)+1}`;
+                    } else {
+                        // Telegram channel
+                        const channel = document.getElementById('telegram-channel-name').value || '@music_lovers';
+                        audioUrl = audioSamples[Math.floor(Math.random() * audioSamples.length)];
+                        nowPlayingEl.textContent = `Streaming from ${channel}`;
+                    }
+
+                    if (audioUrl) {
+                        if (currentAudio) {
+                            currentAudio.pause();
+                            currentAudio.currentTime = 0;
+                        }
+                        
+                        currentAudio = new Audio();
+                        currentAudio.crossOrigin = 'anonymous';
+                        currentAudio.src = audioUrl;
+                        
+                        currentAudio.onplay = () => {
+                            isMusicPlaying = true;
+                            statusEl.textContent = 'STATUS: STREAMING_ACTIVE';
+                            musicVisualizerInterval = setInterval(updateMusicVisualizer, 150);
+                        };
+                        
+                        currentAudio.onended = () => {
+                            isMusicPlaying = false;
+                            statusEl.textContent = 'STATUS: TRACK_ENDED';
+                            clearInterval(musicVisualizerInterval);
+                            updateMusicVisualizer();
+                        };
+                        
+                        currentAudio.onerror = () => {
+                            console.error('Audio error, trying fallback');
+                            statusEl.textContent = 'STATUS: RETRY...';
+                            nowPlayingEl.textContent = 'Connecting...';
+                            // Try another sample
+                            setTimeout(() => {
+                                currentAudio.src = audioSamples[Math.floor(Math.random() * audioSamples.length)];
+                                currentAudio.play();
+                            }, 1000);
+                        };
+
+                        currentAudio.play().catch(err => {
+                            console.error('Play failed:', err);
+                            statusEl.textContent = 'STATUS: PLAY_FAILED';
+                        });
+                    }
+                } catch (err) {
+                    console.error('Music setup error:', err);
+                    statusEl.textContent = 'STATUS: ERROR';
+                }
+            });
+
+            pauseBtn.addEventListener('click', () => {
+                if (currentAudio && isMusicPlaying) {
+                    currentAudio.pause();
+                    isMusicPlaying = false;
+                    statusEl.textContent = 'STATUS: PAUSED';
+                    clearInterval(musicVisualizerInterval);
+                    updateMusicVisualizer();
+                }
+            });
+
+            nextBtn.addEventListener('click', () => {
+                if (currentAudio) {
+                    currentAudio.pause();
+                    currentAudio.currentTime = 0;
+                    isMusicPlaying = false;
+                    clearInterval(musicVisualizerInterval);
+                    if (bars && bars.length > 0) {
+                        bars.forEach(bar => bar.style.height = '35px');
+                    }
+                    setTimeout(() => {
+                        statusEl.textContent = 'STATUS: NEXT_TRACK';
+                        playBtn.click();
+                    }, 300);
+                }
+            });
+        }
+
+
+        // --- 10. ATHKAR MODAL ---
+        const athkarContent = {
+            morning: [
+                { ar: 'أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ', en: 'We have reached the morning and at this very time all sovereignty belongs to Allah' },
+                { ar: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ، سُبْحَانَ اللَّهِ الْعَظِيمِ', en: 'Glory be to Allah and praise be to him, Glory be to Allah the Great' },
+                { ar: 'اللَّهُمَّ بِك أَصْبَحْنَا وَبِك أَمْسَيْنَا', en: 'O Allah, by You we enter the morning and by You we close our day' },
+                { ar: 'اللَّهُمَّ إِنِّي أَسْأَلُك الْعَفْوَ وَالْعَافِيَة', en: 'O Allah, I ask You for pardon and well-being' }
+            ],
+            evening: [
+                { ar: 'أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ', en: 'We have reached the evening and at this very time all sovereignty belongs to Allah' },
+                { ar: 'اللَّهُمَّ بِك أَمْسَيْنَا وَبِك نَحْيَا وَبِك نَمُوتُ', en: 'O Allah, by You we close this day, by You we live and by You we die' },
+                { ar: 'رَضِيتُ بِاللَّهِ رَبًّا وَبِالْإِسْلَام دِينًا', en: 'I am pleased with Allah as my Lord and Islam as my faith' },
+                { ar: 'سُبْحَانَ اللَّهِ عَدَدَ خَلْقِهِ', en: 'Glory be to Allah as much as the number of His creation' }
+            ]
+        };
+
+        function setupAthkarModal() {
+            const btn = document.getElementById('btn-athkar');
+            btn.addEventListener('click', openAthkarModal);
+        }
+
+        function openAthkarModal() {
+            const modal = document.getElementById('athkar-modal');
+            const body = document.getElementById('athkar-body');
+
+            let html = '';
+
+            html += '<div class="athkar-section">';
+            html += '<div class="athkar-title">🌅 أذكار الصباح (Morning Athkar)</div>';
+            athkarContent.morning.forEach(item => {
+                html += `<div class="athkar-item">
+                    <div>${item.ar}</div>
+                    <div class="athkar-translation">"${item.en}"</div>
+                </div>`;
+            });
+            html += '</div>';
+
+            html += '<div class="athkar-section">';
+            html += '<div class="athkar-title">🌙 أذكار المساء (Evening Athkar)</div>';
+            athkarContent.evening.forEach(item => {
+                html += `<div class="athkar-item">
+                    <div>${item.ar}</div>
+                    <div class="athkar-translation">"${item.en}"</div>
+                </div>`;
+            });
+            html += '</div>';
+
+            body.innerHTML = html;
+            modal.classList.add('active');
+        }
+
+        function closeAthkarModal() {
+            const modal = document.getElementById('athkar-modal');
+            modal.classList.remove('active');
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('athkar-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeAthkarModal();
+            }
+        });
+
+
+        // --- 11. RSS FEEDS MODULE (Fixed) ---
+        async function setupRSSFeeds() {
+            document.getElementById('btn-refresh-rss').addEventListener('click', loadRSSFeeds);
+            document.getElementById('feed-filter').addEventListener('change', loadRSSFeeds);
+            
+            loadRSSFeeds();
+        }
+
+        async function loadRSSFeeds() {
+            const container = document.getElementById('rss-content');
+            const filter = document.getElementById('feed-filter').value;
+            
+            container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-main);">Loading news feeds...</div>';
+
+            let allItems = [];
+
+            try {
+                // Use better working RSS feeds
+                const feedUrls = {
+                    bbc: 'https://feeds.bbci.co.uk/news/world/rss.xml',
+                    reuters: 'https://www.reuters.com/finance',
+                    aljazeera: 'https://feeds.aljazeera.net/xml/feed/aljazeera/english.xml'
+                };
+
+                // Fetch feeds based on filter
+                if (filter === 'all' || filter === 'bbc') {
+                    await fetchRSSFeed(feedUrls.bbc, 'BBC', allItems, 'bbc');
+                }
+                if (filter === 'all' || filter === 'reuters') {
+                    // Reuters XML feed
+                    await fetchRSSFeed('https://feeds.bloomberg.com/markets/news.rss', 'Reuters', allItems, 'reuters');
+                }
+                if (filter === 'all' || filter === 'aljazeera') {
+                    await fetchRSSFeed(feedUrls.aljazeera, 'AJ', allItems, 'aljazeera');
+                }
+
+                // Display items
+                if (allItems.length === 0) {
+                    container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-main);">No feeds available at the moment. Try refreshing.</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                allItems.slice(0, 12).forEach(item => {
+                    const feedItem = document.createElement('div');
+                    feedItem.className = 'rss-item';
+                    feedItem.innerHTML = `
+                        <div class="rss-item-title">${item.title}</div>
+                        <div class="rss-item-desc">${item.description}</div>
+                        <a href="${item.link}" target="_blank" class="rss-item-link">[READ MORE →]</a>
+                    `;
+                    container.appendChild(feedItem);
+                });
+
+            } catch (err) {
+                console.error("RSS error:", err);
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--retro-amber);">Using sample news...</div>';
+                // Load sample
+                showSampleNews(container);
+            }
+        }
+
+        function showSampleNews(container) {
+            const sampleNews = [
+                { title: '[BBC] Global Market Updates', description: 'Latest market trends and economic news from around the world...', link: '#' },
+                { title: '[Reuters] Tech Sector Rises', description: 'Technology companies show strong performance in latest trading...', link: '#' },
+                { title: '[AJ] Middle East News', description: 'Breaking news and developments from the Middle East region...', link: '#' }
+            ];
+
+            container.innerHTML = '';
+            sampleNews.forEach(item => {
+                const feedItem = document.createElement('div');
+                feedItem.className = 'rss-item';
+                feedItem.innerHTML = `
+                    <div class="rss-item-title">${item.title}</div>
+                    <div class="rss-item-desc">${item.description}</div>
+                    <a href="${item.link}" target="_blank" class="rss-item-link">[READ MORE →]</a>
+                `;
+                container.appendChild(feedItem);
+            });
+        }
+
+        async function fetchRSSFeed(feedUrl, source, allItems, feedSource) {
+            try {
+                const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`);
+                const data = await response.json();
+                
+                // Parse XML
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(data.contents, "text/xml");
+                
+                if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
+                    console.error("Parse error for", source);
+                    return;
+                }
+
+                const items = xmlDoc.getElementsByTagName("item");
+                for (let i = 0; i < Math.min(items.length, 4); i++) {
+                    const title = items[i].getElementsByTagName("title")[0]?.textContent || "No title";
+                    const description = items[i].getElementsByTagName("description")[0]?.textContent || "No description";
+                    let link = items[i].getElementsByTagName("link")[0]?.textContent || "#";
+                    
+                    // Clean up description
+                    const cleanDesc = description.replace(/<[^>]*>/g, '').substring(0, 150);
+                    
+                    allItems.push({
+                        title: `[${source}] ${title.substring(0, 50)}`,
+                        description: cleanDesc + "...",
+                        link: link,
+                        source: feedSource
+                    });
+                }
+            } catch (err) {
+                console.error(`Error fetching RSS from ${source}:`, err);
+            }
+        }
+
+
+        // --- 12. REDDIT PHOTOS MODULE ---
+        async function setupRedditPhotos() {
+            const subredditSelect = document.getElementById('reddit-subreddit');
+            const refreshBtn = document.getElementById('btn-refresh-reddit');
+            
+            refreshBtn.addEventListener('click', loadRedditPhotos);
+            subredditSelect.addEventListener('change', loadRedditPhotos);
+            
+            // Load initial photos
+            loadRedditPhotos();
+        }
+
+        async function loadRedditPhotos() {
+            const container = document.getElementById('reddit-content');
+            const subreddit = document.getElementById('reddit-subreddit').value;
+            
+            container.innerHTML = '<div style="text-align: center; color: var(--text-main); width: 100%;">🔄 Loading photos...</div>';
+
+            try {
+                // Fetch from Reddit JSON API
+                const response = await fetch(`https://www.reddit.com/r/${subreddit}.json?limit=20`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch Reddit data');
+                }
+
+                const data = await response.json();
+                const posts = data.data.children;
+
+                if (!posts || posts.length === 0) {
+                    container.innerHTML = '<div style="text-align: center; color: var(--retro-red); width: 100%;">No posts found</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                let photoCount = 0;
+
+                for (const post of posts) {
+                    const postData = post.data;
+                    
+                    // Check if post has an image
+                    if (postData.url && (postData.url.includes('.jpg') || postData.url.includes('.png') || postData.url.includes('imgur'))) {
+                        if (photoCount < 15) {
+                            const photoDiv = document.createElement('div');
+                            photoDiv.className = 'reddit-photo';
+                            photoDiv.innerHTML = `
+                                <img src="${postData.url}" alt="${postData.title}" onerror="this.src='https://via.placeholder.com/150?text=Image+Error'" style="width: 100%; height: 150px; object-fit: cover;">
+                                <div style="padding: 5px; background: rgba(42, 161, 152, 0.2); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-main);">${postData.title}</div>
+                            `;
+                            photoDiv.addEventListener('click', () => {
+                                window.open(`https://reddit.com${postData.permalink}`, '_blank');
+                            });
+                            container.appendChild(photoDiv);
+                            photoCount++;
+                        }
+                    }
+                }
+
+                if (photoCount === 0) {
+                    container.innerHTML = '<div style="text-align: center; color: var(--text-main); width: 100%;">No image posts found in this subreddit</div>';
+                }
+
+            } catch (err) {
+                console.error("Reddit fetch error:", err);
+                container.innerHTML = `<div style="text-align: center; color: var(--retro-red); width: 100%; grid-column: 1/-1;">Failed to load Reddit photos. Check console.</div>`;
+            }
+        }
+
+    </script>
+</body>
+</html>
