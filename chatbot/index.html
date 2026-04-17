@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmolChat - Local Browser AI</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="bg-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="header-info">
+            <h1>SmolChat AI</h1>
+            <p id="loading-status">Initializing Transformers.js...</p>
+        </div>
+        <div class="progress-container">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <p class="loading-text" id="loading-detail">This might take a moment on the first run (approx. 270MB)</p>
+    </div>
+
+    <!-- Main Chat Window -->
+    <div class="chat-container">
+        <header class="chat-header">
+            <div class="header-info">
+                <h1>SmolChat</h1>
+                <p>Running SmolLM2-135M locally</p>
+            </div>
+            <div class="status-badge">
+                <div id="status-dot" class="status-dot"></div>
+                <span id="device-label">WebGPU Accelerated</span>
+            </div>
+        </header>
+
+        <main id="messages-area" class="messages-area">
+            <!-- Messages will appear here -->
+            <div class="message message-bot">
+                Hello! I'm a small but capable language model running entirely in your browser. How can I help you today?
+            </div>
+        </main>
+
+        <footer class="input-area">
+            <textarea id="user-input" placeholder="Type a message..." rows="1"></textarea>
+            <button id="send-btn" class="send-btn" disabled>
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </footer>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
